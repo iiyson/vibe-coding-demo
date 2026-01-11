@@ -78,7 +78,7 @@ alphv_intern_app/
 | Role | Username | Password |
 | :--- | :--- | :--- |
 | **Admin** | `admin` | `admin` |
-| **User** | `user` | `user123` |
+| **User** | `user` | `userpwd` |
 
 ---
 
@@ -155,5 +155,5 @@ alphv_intern_app/
 ### 示例账户
 | 角色 | 用户名 | 密码 |
 | :--- | :--- | :--- |
-| **管理员** | `admin` | `admin123` |
-| **普通用户** | `user01` | `user123` |
+| **管理员** | `admin` | `admin` |
+| **普通用户** | `user` | `userpwd` |
