@@ -1,58 +1,70 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  db:
-    image: mysql:8.0
-    container_name: alphv_db
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: alphv_db
-      MYSQL_ROOT_PASSWORD: 123456
-      MYSQL_USER: alphv
-      MYSQL_PASSWORD: alphvuser
-    command:
-      [
-        "mysqld",
-        "--default-authentication-plugin=mysql_native_password",
-        "--character-set-server=utf8mb4",
-        "--collation-server=utf8mb4_unicode_ci"
-      ]
+  frontend:
+    # 替换为你的前端 Docker 镜像名称和标签
+    image: iysonchan/alphv_intern_app-frontend:v1
+    container_name: frontend_app
     ports:
-      - "33066:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
+      - "80:80" # 将主机的 80 端口映射到容器的 80 端口，用于外部访问
+    # environment:
+      # 如果你的前端应用需要知道后端 API 的地址，可以在这里配置
+      # 例如，如果前端通过 Nginx 代理到后端，这里可能不需要，或者需要配置 Nginx 相关的环境变量
+      # 如果前端直接调用后端服务，这里可以设置为后端服务的名称和端口
+      # 例如：VUE_APP_API_URL: http://backend:8000
+      # 请根据你的前端框架和配置进行调整
+      # BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend # 前端依赖于后端服务
 
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: alphv_backend
-    restart: unless-stopped
-    depends_on:
-      - db
+    # 替换为你的后端 Docker 镜像名称和标签
+    image: iysonchan/alphv_intern_app-backend:v1
+    container_name: backend_app
+    # 后端服务通常不需要直接暴露端口到主机，因为前端会通过 Docker 内部网络访问它
+    # 如果你需要从主机直接访问后端（例如进行 API 测试），可以取消注释下面的端口映射
+    ports:
+      - "8000:8000"
     environment:
+      # 数据库连接信息，请根据你的实际情况修改
       MYSQL_DATABASE: alphv_db
       MYSQL_USER: alphv
       MYSQL_PASSWORD: alphvuser
-      MYSQL_HOST: db
+      MYSQL_HOST: db # 'db' 是数据库服务的名称
       MYSQL_PORT: 3306
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app/backend
-      - ./media:/app/backend/media
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: alphv_frontend
-    restart: unless-stopped
+      # 其他后端需要的环境变量，例如 SECRET_KEY 等
+      # SECRET_KEY: your_secret_key_here
     depends_on:
-      - backend
+      db:
+        condition: service_healthy # 后端依赖于数据库服务，并等待其健康
+
+    command: >
+      sh -c "python /app/backend/manage.py migrate && \
+             python /app/backend/init_admin.py && \
+             python /app/backend/manage.py runserver 0.0.0.0:8000"
+
+  db:
+    image: mysql:8.0 # 使用 MySQL 8.0 镜像
+    container_name: alphv_db
+    restart: unless-stopped # 容器退出时自动重启
+    healthcheck: # 添加健康检查
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      timeout: 20s
+      retries: 15
+      start_period: 30s
+    environment:
+      # MySQL 数据库的 root 用户密码，请务必修改为强密码
+      MYSQL_ROOT_PASSWORD: Rootpwd123
+      # 数据库名称、用户和密码，与后端服务中的配置保持一致
+      MYSQL_DATABASE: alphv_db
+      MYSQL_USER: alphv
+      MYSQL_PASSWORD: alphvuser
     ports:
-      - "8088:80"
+      # 如果你需要从主机访问数据库（例如使用数据库管理工具），可以取消注释下面的端口映射
+      # "33066:3306" 表示将主机的 33066 端口映射到容器的 3306 端口
+      - "33066:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql # 将数据库数据持久化到命名卷
 
 volumes:
-  mysql_data:
-
+  mysql_data: # 定义一个命名卷用于持久化 MySQL 数据
